@@ -17,18 +17,18 @@ services:
     ports:
       - "6379:6379"
 
-  # auth_service:
-  #   build: ./backend/auth
-  #   container_name: edu_auth
-  #   environment:
-  #     DATABASE_URL: postgresql://edu_admin:edu_password@postgres:5432/edu_platform
-  #     REDIS_URL: redis://redis:6379/0
-  #     SECRET_KEY: "ваш-секретный-ключ-замените"
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     - postgres
-  #   - redis
+  auth_service:
+    build: ./backend/auth
+    container_name: edu_auth
+    environment:
+      DATABASE_URL: postgresql://edu_admin:edu_password@postgres:5432/edu_platform
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: "ваш-секретный-ключ-замените"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    - redis
 
 volumes:
   postgres_data:
