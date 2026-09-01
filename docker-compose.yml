@@ -32,5 +32,19 @@ services:
       - postgres
       - redis
 
+  courses_service:
+    build: ./backend/courses
+    container_name: edu_courses
+    environment:
+      DATABASE_URL: postgresql://edu_admin:edu_password@postgres:5432/edu_platform
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: "your_super_secret_key_here_change_in_production"
+      ALGORITHM: "HS256"
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+
 volumes:
   postgres_data:
