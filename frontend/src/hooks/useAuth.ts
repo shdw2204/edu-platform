@@ -8,28 +8,42 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const fetchUser = async (token: string) => {
+    try {
+      const res = await authApi.me();
+      setUser(res.data);
+      return true;
+    } catch {
+      localStorage.removeItem('token');
+      setUser(null);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      authApi
-        .me()
-        .then((res) => setUser(res.data))
-        .catch(() => {
-          localStorage.removeItem('token');
-          setUser(null);
-        })
-        .finally(() => setLoading(false));
+      fetchUser(token).finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
   }, []);
 
   const login = async (email: string, password: string) => {
-    const res = await authApi.login({ email, password });
-    localStorage.setItem('token', res.data.access_token);
-    const userRes = await authApi.me();
-    setUser(userRes.data);
-    router.push('/courses');
+    try {
+      const res = await authApi.login({ email, password });
+      localStorage.setItem('token', res.data.access_token);
+      
+      // Получаем данные пользователя
+      const userRes = await authApi.me();
+      setUser(userRes.data);
+      
+      // Принудительный переход на страницу курсов
+      window.location.href = '/courses';
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
   const register = async (data: { email: string; password: string; full_name: string; role: string }) => {
@@ -38,9 +52,9 @@ export function useAuth() {
   };
 
   const logout = () => {
-    authApi.logout();
+    localStorage.removeItem('token');
     setUser(null);
-    router.push('/auth/login');
+    window.location.href = '/auth/login';
   };
 
   return { user, loading, login, register, logout };

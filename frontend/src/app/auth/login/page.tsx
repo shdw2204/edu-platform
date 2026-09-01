@@ -8,14 +8,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
     try {
       await login(email, password);
-    } catch (err) {
-      setError('Неверный email или пароль');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Неверный email или пароль');
+      setLoading(false);
     }
   };
 
@@ -32,6 +37,7 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
             required
+            disabled={loading}
           />
         </div>
         <div className="mb-6">
@@ -42,13 +48,15 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-400"
             required
+            disabled={loading}
           />
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
         >
-          Войти
+          {loading ? 'Вход...' : 'Войти'}
         </button>
       </form>
       <p className="mt-4 text-center text-sm">

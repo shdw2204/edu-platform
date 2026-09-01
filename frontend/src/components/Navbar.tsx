@@ -18,6 +18,16 @@ export default function Navbar() {
               <Link href="/courses" className="hover:underline">
                 Курсы
               </Link>
+              {user.role === 'teacher' && (
+                <>
+                  <Link href="/my-courses" className="hover:underline">
+                    Мои курсы
+                  </Link>
+                  <Link href="/courses/create" className="bg-green-500 px-3 py-1 rounded hover:bg-green-600">
+                    + Создать курс
+                  </Link>
+                </>
+              )}
               <Link href="/profile" className="hover:underline">
                 {user.full_name} ({user.role})
               </Link>

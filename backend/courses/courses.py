@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -18,6 +18,21 @@ from dependencies import get_current_user_id
 router = APIRouter()
 
 # ---- Эндпоинты для курсов ----
+
+@router.get("/courses", response_model=List[CourseResponse])
+def get_courses(
+    skip: int = 0,
+    limit: int = 100,
+    all_courses: bool = Query(False, description="Если true, возвращаются все курсы пользователя"),
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    print(f"🔍 all_courses: {all_courses}, user_id: {user_id}")
+    if all_courses:
+        courses = db.query(Course).filter(Course.teacher_id == user_id).all()
+    else:
+        courses = db.query(Course).filter(Course.is_published == True).offset(skip).limit(limit).all()
+    return courses
 
 @router.post("/courses", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)
 def create_course(
@@ -39,28 +54,18 @@ def create_course(
     db.refresh(db_course)
     return db_course
 
-@router.get("/courses", response_model=List[CourseResponse])
-def get_courses(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """Получить список всех опубликованных курсов (доступно всем)"""
-    courses = db.query(Course).filter(Course.is_published == True).offset(skip).limit(limit).all()
-    return courses
-
 @router.get("/courses/{course_id}", response_model=CourseResponse)
 def get_course(
     course_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
 ):
-    """Получить курс по ID с уроками (доступно всем)"""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     
-    # Проверяем, опубликован ли курс (если нет - доступ запрещен)
-    if not course.is_published:
+    # Если курс не опубликован, только автор может его видеть
+    if not course.is_published and str(course.teacher_id) != str(user_id):
         raise HTTPException(status_code=403, detail="Course is not published")
     
     return course
@@ -77,7 +82,6 @@ def update_course(
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     
-    # Сравниваем как строки, чтобы избежать ошибок типов
     if str(course.teacher_id) != str(teacher_id):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
@@ -123,7 +127,7 @@ def add_lesson(
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Автоматически вычисляем следующий порядковый номер
-    max_order = db.query(db.func.max(Lesson.order)).filter(Lesson.course_id == course_id).scalar()
+    max_order = db.query(func.max(Lesson.order)).filter(Lesson.course_id == course_id).scalar()
     next_order = (max_order or 0) + 1
     
     db_lesson = Lesson(
@@ -132,7 +136,7 @@ def add_lesson(
         content_type=lesson.content_type,
         video_url=lesson.video_url,
         text_content=lesson.text_content,
-        order=next_order  # Используем автоматическое значение
+        order=next_order
     )
     db.add(db_lesson)
     db.commit()
@@ -142,14 +146,16 @@ def add_lesson(
 @router.get("/courses/{course_id}/lessons", response_model=List[LessonResponse])
 def get_lessons(
     course_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
 ):
-    """Получить все уроки курса (доступно всем)"""
+    """Получить все уроки курса (только авторизованные)"""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     
-    if not course.is_published:
+    # Если курс не опубликован, только автор может видеть уроки
+    if not course.is_published and str(course.teacher_id) != str(user_id):
         raise HTTPException(status_code=403, detail="Course is not published")
     
     lessons = db.query(Lesson).filter(Lesson.course_id == course_id).order_by(Lesson.order).all()
@@ -293,7 +299,7 @@ def get_course_progress_summary(
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)
 ):
-    """Получить сводку прогресса по курсу (количество пройденных уроков, проценты)"""
+    """Получить сводку прогресса по курсу"""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -315,6 +321,8 @@ def get_course_progress_summary(
         "completed_lessons": completed_count,
         "progress_percent": progress_percent
     }
+
+# ---- Эндпоинты для тестов ----
 
 @router.post("/lessons/{lesson_id}/quiz", response_model=QuizResponse, status_code=status.HTTP_201_CREATED)
 def create_quiz(
@@ -344,7 +352,7 @@ def create_quiz(
         description=quiz_data.description
     )
     db.add(db_quiz)
-    db.flush()  # Чтобы получить ID теста
+    db.flush()
     
     # Создаём вопросы и варианты ответов
     for q_data in quiz_data.questions:
@@ -379,9 +387,6 @@ def get_quiz(
     quiz = db.query(Quiz).filter(Quiz.lesson_id == lesson_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
-    
-    # Скрываем правильные ответы для учеников
-    # Если нужна более сложная логика, можно проверять роль пользователя
     return quiz
 
 @router.post("/quiz/attempt", response_model=QuizAttemptResponse)
@@ -410,11 +415,10 @@ def submit_quiz_attempt(
         if question.question_type in ["single_choice", "multiple_choice"]:
             if str(user_answer) in [str(opt) for opt in correct_options]:
                 correct_answers += 1
-        # Для текстового ответа можно реализовать позже
     
     # Рассчитываем процент
     percentage = (correct_answers / total_questions) * 100 if total_questions > 0 else 0
-    passed = percentage >= 60  # Проходной балл
+    passed = percentage >= 60
     
     # Сохраняем попытку
     db_attempt = QuizAttempt(
@@ -450,3 +454,12 @@ def submit_quiz_attempt(
         db.commit()
     
     return db_attempt
+
+@router.get("/my-courses", response_model=List[CourseResponse])
+def get_my_courses(
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    """Получить все курсы текущего учителя (черновики + опубликованные)"""
+    courses = db.query(Course).filter(Course.teacher_id == user_id).all()
+    return courses
