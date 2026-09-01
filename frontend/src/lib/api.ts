@@ -11,14 +11,9 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  console.log('🔍 Интерцептор: токен из localStorage:', token); // <-- Добавлено
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('✅ Интерцептор: добавлен заголовок Authorization');
-  } else {
-    console.warn('⚠️ Интерцептор: токен не найден!');
   }
-  console.log('📦 Интерцептор: полные заголовки запроса:', config.headers);
   return config;
 });
 
@@ -47,15 +42,16 @@ export const coursesApi = {
     apiClient.get(`http://localhost:8001/api/progress/course/${courseId}/summary`),
   updateProgress: (data: { lesson_id: string; status: string }) =>
     apiClient.post('http://localhost:8001/api/progress', data),
-  // НОВЫЕ МЕТОДЫ ДЛЯ СОЗДАНИЯ
-  create: (data: { title: string; description: string; subject: string; level: string; price: number }) => {
-    console.log('📤 coursesApi.create: отправка данных', data);
-    return apiClient.post('http://localhost:8001/api/courses', data);
-  },
+  create: (data: { title: string; description: string; subject: string; level: string; price: number }) =>
+    apiClient.post('http://localhost:8001/api/courses', data),
   update: (id: string, data: any) =>
     apiClient.put(`http://localhost:8001/api/courses/${id}`, data),
   delete: (id: string) =>
     apiClient.delete(`http://localhost:8001/api/courses/${id}`),
   addLesson: (courseId: string, data: { title: string; content_type: string; video_url?: string; text_content?: string; order: number }) =>
     apiClient.post(`http://localhost:8001/api/courses/${courseId}/lessons`, data),
+  updateLesson: (lessonId: string, data: any) =>
+    apiClient.put(`http://localhost:8001/api/lessons/${lessonId}`, data),
+  deleteLesson: (lessonId: string) =>
+    apiClient.delete(`http://localhost:8001/api/lessons/${lessonId}`),
 };

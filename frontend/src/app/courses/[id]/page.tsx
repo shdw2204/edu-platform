@@ -26,12 +26,11 @@ export default function CoursePage() {
       ]);
       setCourse(courseRes.data);
       setLessons(lessonsRes.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching course:', error);
       if (error.response?.status === 403) {
         alert('Этот курс ещё не опубликован. Вы можете увидеть его только если вы автор.');
       }
-    // Не сбрасываем курс, чтобы пользователь мог вернуться
     } finally {
       setLoading(false);
     }
@@ -74,22 +73,30 @@ export default function CoursePage() {
           ← Назад к курсам
         </Link>
         <div className="flex gap-2">
-          {isAuthor && !course.is_published && (
-            <button
-              onClick={handlePublish}
-              disabled={publishing}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition disabled:opacity-50"
-            >
-              {publishing ? 'Публикация...' : '📢 Опубликовать курс'}
-            </button>
-          )}
           {isAuthor && (
-            <Link
-              href={`/courses/${course.id}/add-lesson`}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-            >
-              + Добавить урок
-            </Link>
+            <>
+              <Link
+                href={`/courses/${course.id}/edit`}
+                className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition"
+              >
+                ✏️ Редактировать курс
+              </Link>
+              {!course.is_published && (
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing}
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  {publishing ? 'Публикация...' : '📢 Опубликовать курс'}
+                </button>
+              )}
+              <Link
+                href={`/courses/${course.id}/add-lesson`}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+              >
+                + Добавить урок
+              </Link>
+            </>
           )}
         </div>
       </div>
